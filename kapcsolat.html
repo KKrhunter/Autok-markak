@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<form action="">
+    <br><br><br>
+    <center><h1>Űrlap</h1></center>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6" style="justify-items: center; justify-content: center; text-align: center;">
+                <label for="">Név</label><p id="nev" style="color:red;"></p>
+                <input type="text" id="nev_ertek"> <br>
+                <label for="">E-mail cím</label> <p id="email" style="color:red;"></p>
+                <input type="email" id="email_ertek"> <br>
+                <input type="range" min="1" max="5" value="5" id="csuszka" onchange="ertek()"> <br>
+                <p id="ertek">5</p>
+                <label for="" id="ido">Mikor látogatta</label> <br>
+                <input type="date"> <br>
+                <label for="">Kedvenc élmény</label> <br>
+                <select id="legjobbanTetszett" name="legjobbanTetszett"> <br>
+                    <option value="">Válasszon egy lehetőséget</option>
+                    <option value="hely1">Az egri vár</option>
+                    <option value="hely2">Bazilika</option>
+                    <option value="hely3">Minarett</option>
+                    <option value="egyeb">Egyéb</option>
+                </select><br><br>
+        
+
+
+            </div>
+            <div class="col-md-6" style="justify-items: center; justify-content: center; text-align: center;">
+                <label for="velemeny">Vélemény (max. 500 karakter):</label> <br>
+                <textarea id="velemeny" name="velemeny" maxlength="500" style="width: 400px; height: 225px;"></textarea> <br>
+                <p id="karakterSzamlalo">0 / 500 karakter</p>
+
+            </div>
+            
+            <center><input type="submit" style="width: 60%; max-width: 700px;"></center>
+        </div>
+    </div>
+
+
+
+</form>
+<script>
+        const nev_input = document.getElementById('nev_ertek');
+        const uzenet = document.getElementById('nev');
+
+        nev_input.addEventListener('input', () => {
+            if (nev_input.value.trim() === '') {
+                uzenet.textContent = 'A név nem lehet üres!';
+            } else {
+                uzenet.textContent = '';
+            }
+        });
+
+        const email= document.getElementById('email_ertek');
+        const email_uzenet = document.getElementById('email');
+
+        email.addEventListener('input', () => {
+            if (email.value.trim() === '') {
+                email_uzenet.textContent = 'Az email nem lehet üres!';
+            } else {
+                email_uzenet.textContent = '';
+            }
+        });
+
+
+        const velemeny = document.getElementById('velemeny');
+        const karakterSzamlalo = document.getElementById('karakterSzamlalo');
+
+        velemeny.addEventListener('input', () => {
+        const karakterekSzama = velemeny.value.length;
+        karakterSzamlalo.textContent = `${karakterekSzama} / 500 karakter`;
+});
+
+
+function ertek() {
+        document.getElementById("ertek").innerHTML = document.getElementById("csuszka").value
+}
+</script>
+
+</body>
+</html>
