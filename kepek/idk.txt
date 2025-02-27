@@ -1,1 +1,1 @@
-csak van
+mingw-get install mingw32-gcc
