@@ -1,96 +1,273 @@
-<!doctype html>
-<html lang="hu">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Autók</title>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Car Showcase</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-  </head>
-  <body>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #ececec, #ffffff);
+            color: #333;
+            line-height: 1.6;
+            padding-bottom: 60px;
+        }
+        header {
+            background: linear-gradient(to right, #1a1a1a, #4d4d4d);
+            color: white;
+            text-align: center;
+            padding: 40px 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            animation: fadeIn 1s ease-in;
+        }
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        .tabs {
+            max-width: 1200px;
+            margin: 20px auto;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 0 20px;
+        }
+        .tab {
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            background: #fff;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            transition: background 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .tab:hover {
+            background: #f0f0f0;
+            transform: translateY(-2px);
+        }
+        .tab.active {
+            background: linear-gradient(to right, #ff4d4d, #e60000);
+            color: white;
+        }
+        .tab img {
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+        .tab span {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .car-section {
+            max-width: 1200px;
+            margin: 0 auto 30px;
+            padding: 25px;
+            background: white;
+            border-radius: 0 12px 12px 12px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            display: none;
+            transition: opacity 0.3s ease;
+        }
+        .car-section.active {
+            display: block;
+            opacity: 1;
+            animation: fadeIn 0.5s ease-in;
+        }
+        .car-section img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .car-section h2 {
+            color: #1a1a1a;
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+        .car-section p {
+            font-size: 1.1em;
+            margin-bottom: 15px;
+        }
+        .cta-button {
+            display: inline-block;
+            padding: 12px 25px;
+            background: linear-gradient(to right, #ff4d4d, #e60000);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+        .cta-button:hover {
+            background: linear-gradient(to right, #e60000, #cc0000);
+            transform: scale(1.05);
+        }
+        footer {
+            text-align: center;
+            padding: 15px;
+            background: #1a1a1a;
+            color: white;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            font-size: 0.9em;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            header h1 { font-size: 2em; }
+            header p { font-size: 1em; }
+            .tabs { flex-direction: column; padding: 0 10px; }
+            .tab { width: 100%; justify-content: center; }
+            .car-section { margin: 0 10px 20px; padding: 15px; }
+            .car-section h2 { font-size: 1.5em; }
+            .car-section p { font-size: 1em; }
+            .cta-button { padding: 10px 20px; }
+        }
+
+        @media (max-width: 480px) {
+            header { padding: 30px 15px; }
+            header h1 { font-size: 1.5em; }
+            header p { font-size: 0.9em; }
+            .tab img { width: 30px; height: 30px; }
+            .tab span { font-size: 1em; }
+            .car-section { margin: 0 5px 15px; padding: 10px; }
+            .car-section h2 { font-size: 1.3em; }
+            .car-section p { font-size: 0.9em; }
+            .cta-button { padding: 8px 15px; font-size: 0.9em; }
+            footer { font-size: 0.8em; padding: 10px; }
+        }
+    </style>
+</head>
+<body>
     <header>
-        <nav style="background-color: darkblue; text-align: center;">
-            <img class="logo" src="eger_logo-1.png" alt="">
-        </nav>
-    
-        <center>
-            <div class="nagy_oldal_box">
-            <div class="fooldal_box">
-              <h1 style="text-shadow: 1px 1px black;"></h1>
-            </div>
-          </div>
-            <div style="margin: 50px;">
-            </div>
-          </center>
-    
+        <h1>Ultimate Car Showcase</h1>
+        <p>Discover the Best in Automotive Excellence</p>
     </header>
-    <nav>
-        S
+    <br><br>
 
-    </nav>
-    <main>
-        <div class="container">
-            <div class="row">
-                <img src="kepek/logo_merc" alt="">
-                <img src="kepek/logo_bmw" alt="">
-                <img src="kepek/logo_vw" alt="">
-            </div>
+
+    <div id="carouselExampleIndicators" class="carousel slide" style="height: 600px;">
+        <div class="carousel-indicators">
+          <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+          <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="1" aria-label="Slide 2"></button>
+          <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="2" aria-label="Slide 3"></button>
         </div>
-        <div class="container">
-            <div class="row">
-                <div id="merc">Merc</div>
-                <div id="bmw">bmw</div>
-                <div id="vw">vw</div>
-            </div>
-
+        <div class="carousel-inner">
+          <div class="carousel-item active">
+            <img src="..." class="d-block w-100" alt="...">
+          </div>
+          <div class="carousel-item">
+            <img src="..." class="d-block w-100" alt="...">
+          </div>
+          <div class="carousel-item">
+            <img src="..." class="d-block w-100" alt="...">
+          </div>
         </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide="prev">
+          <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+          <span class="visually-hidden">Previous</span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide="next">
+          <span class="carousel-control-next-icon" aria-hidden="true"></span>
+          <span class="visually-hidden">Next</span>
+        </button>
+      </div>
 
 
 
-    </main>
+    <div class="tabs">
+        <div class="tab active" onclick="showCar('bmw')">
+            <img src="bmw-logo.jpg" alt="BMW Logo">
+            <span>BMW</span>
+        </div>
+        <div class="tab" onclick="showCar('mercedes')">
+            <img src="mercedes-logo.jpg" alt="Mercedes Logo">
+            <span>Mercedes</span>
+        </div>
+        <div class="tab" onclick="showCar('volkswagen')">
+            <img src="vw-logo.jpg" alt="Volkswagen Logo">
+            <span>Volkswagen</span>
+        </div>
+        <div class="tab" onclick="showCar('audi')">
+            <img src="audi-logo.jpg" alt="Audi Logo">
+            <span>Audi</span>
+        </div>
+        <div class="tab" onclick="showCar('porsche')">
+            <img src="porsche-logo.jpg" alt="Porsche Logo">
+            <span>Porsche</span>
+        </div>
+    </div>
+
+    <div id="bmw" class="car-section active">
+        <h2>BMW - The Ultimate Driving Machine</h2>
+        <img src="bmw-image.jpg" alt="BMW Car">
+        <p>Experience the thrill of precision engineering and sleek design with BMW. From the iconic 3 Series to the luxurious X7, BMW offers unmatched performance and style.</p>
+        <a href="https://www.bmw.com" target="_blank" class="cta-button">Explore BMW</a>
+    </div>
+
+    <div id="mercedes" class="car-section">
+        <h2>Mercedes-Benz - The Best or Nothing</h2>
+        <img src="mercedes-image.jpg" alt="Mercedes Car">
+        <p>Mercedes-Benz combines luxury, innovation, and safety in every vehicle. Whether it's the elegant S-Class or the dynamic GLC, Mercedes sets the standard for premium driving.</p>
+        <a href="https://www.mercedes-benz.com" target="_blank" class="cta-button">Discover Mercedes</a>
+    </div>
+
+    <div id="volkswagen" class="car-section">
+        <h2>Volkswagen - Driven by You</h2>
+        <img src="vw-image.jpg" alt="Volkswagen Car">
+        <p>Volkswagen delivers reliability and versatility for every driver. From the timeless Golf to the eco-friendly ID.4, VW is built for the road ahead.</p>
+        <a href="https://www.vw.com" target="_blank" class="cta-button">Check Out VW</a>
+    </div>
+
+    <div id="audi" class="car-section">
+        <h2>Audi - Vorsprung durch Technik</h2>
+        <img src="audi-image.jpg" alt="Audi Car">
+        <p>Audi redefines luxury and performance with cutting-edge technology. From the sporty A4 to the electric e-tron, Audi blends style with innovation.</p>
+        <a href="https://www.audi.com" target="_blank" class="cta-button">Explore Audi</a>
+    </div>
+
+    <div id="porsche" class="car-section">
+        <h2>Porsche - There Is No Substitute</h2>
+        <img src="porsche-image.jpg" alt="Porsche Car">
+        <p>Porsche delivers exhilarating performance and timeless design. Whether it's the iconic 911 or the versatile Cayenne, Porsche is pure driving passion.</p>
+        <a href="https://www.porsche.com" target="_blank" class="cta-button">Discover Porsche</a>
+    </div>
+
     <footer>
-
+        <p>© 2025 Ultimate Car Showcase. All rights reserved.</p>
     </footer>
 
-    <h1>Hello, world!</h1>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     <script>
-        document.getElementById("merc").style.display = "block";
-        document.getElementById("bmw").style.display = "none";
-        document.getElementById("vw").style.display = "none" ;
-
-        function Merc() {
-            document.getElementById("merc").style.display = "block";
-            document.getElementById("bmw").style.display = "none";
-            document.getElementById("vw").style.display = "none" ;
+        function showCar(brand) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.car-section').forEach(section => section.classList.remove('active'));
+            document.querySelector(`.tab[onclick="showCar('${brand}')"]`).classList.add('active');
+            document.getElementById(brand).classList.add('active');
         }
-        function BMW() {
-            document.getElementById("merc").style.display = "none";
-            document.getElementById("bmw").style.display = "block";
-            document.getElementById("vw").style.display = "none" ;
-        }
-        function VW() {
-            document.getElementById("merc").style.display = "none";
-            document.getElementById("bmw").style.display = "none";
-            document.getElementById("vw").style.display = "block" ;
-        }
-
     </script>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-  </body>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>
+</body>
 </html>
