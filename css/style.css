@@ -143,13 +143,11 @@
             object-fit: contain;
             width: 100%;
         }
-        /* Animations */
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
         }
 
-        /* Responsive Design */
         @media (max-width: 768px) {
             header h1 { font-size: 2em; }
             header p { font-size: 1em; }
